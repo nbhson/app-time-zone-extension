@@ -1,14 +1,13 @@
 {
     "name": "Convert Time",
-    "version": "1.0",
-    "version_name": "build rc1",
-    "manifest_version": 2,
-    "description": "Display the time of coutries",
+    "version": "1.2.0",
+    "manifest_version": 3,
+    "description": "Display the time of countries beautifully.",
     "icons": {
         "16": "images/icon.png",
         "48": "images/icon.png"
     },
-    "browser_action": {
+    "action": {
         "default_icon": {
             "19": "images/icon.png",
             "38": "images/icon.png"
@@ -17,8 +16,8 @@
         "default_popup": "popup.html"
     },
     "background": {
-        "page": "background.html",
-        "persistent": false
+        "service_worker": "scripts/background.js",
+        "type": "module"
     },
     "content_scripts": [
         {
@@ -36,7 +35,7 @@
         }
     ],
     "permissions": [
-        "clipboardWrite",
-        "storage"
+        "storage",
+        "clipboardWrite"
     ]
 }

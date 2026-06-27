@@ -4,156 +4,91 @@
         <meta charset="utf-8">
         <link rel="stylesheet" href="./styles/lib/bootstrap.min.css">
         <link rel="stylesheet" href="./styles/popup.css">
-        <title>My Extension</title>
+        <!-- Load custom premium Google Font -->
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+        <title>Chronos Time</title>
     </head>
     <body>
-        <div class="container">
-            <div class="card mb-3 mt-3">
-                <div class="card-body d-flex justify-content-between align-items-center">
-                    <div class="d-flex align-items-center">
-                        <label for="country-select" class="me-3">Select Countries:</label>
-                        <select id="country-select" class="form-select" multiple size="5">
-                            <option value="UTC">UTC</option>
-                            <option value="America/New_York">United States</option>
-                            <option value="Europe/London">United Kingdom</option>
-                            <option value="Asia/Tokyo">Japan</option>
-                            <option value="Australia/Sydney">Australia</option>
-                            <option value="Asia/Singapore">Singapore</option>
-                            <option value="Europe/Paris">France</option>
-                        </select>
+        <div class="app-container">
+            <!-- Header -->
+            <header class="app-header d-flex justify-content-between align-items-center">
+                <div class="brand d-flex align-items-center gap-2">
+                    <div class="brand-logo-container">
+                        <img src="./images/icon.png" alt="Logo" class="brand-logo">
                     </div>
                     <div>
-                        <div
-                            class="btn-group"
-                            role="group"
-                            aria-label="Basic radio toggle button group"
-                        >
-                            <input
-                                type="radio"
-                                class="btn-check"
-                                name="btnradio"
-                                id="btnRadio24h"
-                                autocomplete="off"
-                            >
-                            <label
-                                class="btn btn-outline-primary"
-                                for="btnRadio24h"
-                            >
-                                24h
-                            </label>
-
-                            <input
-                                type="radio"
-                                class="btn-check"
-                                name="btnradio"
-                                id="btnRadio12h"
-                                autocomplete="off"
-                            >
-                            <label
-                                class="btn btn-outline-primary"
-                                for="btnRadio12h"
-                            >
-                                12h
-                            </label>
-
-                        </div>
+                        <h1 class="brand-name m-0">Chronos</h1>
+                        <p class="brand-sub m-0">Time Zone Converter</p>
                     </div>
+                </div>
+                
+                <div class="header-controls d-flex align-items-center gap-3">
+                    <!-- Format Toggle Switch: Left = 24h, Right = 12h -->
+                    <div class="format-toggle-container" title="Toggle 12h/24h format">
+                        <input type="checkbox" id="format-checkbox" class="toggle-checkbox">
+                        <label for="format-checkbox" class="toggle-label">
+                            <span class="toggle-inner"></span>
+                            <span class="toggle-switch"></span>
+                        </label>
+                    </div>
+                    <!-- Live Status Indicator -->
+                    <div class="live-indicator-container d-flex align-items-center gap-2" id="live-indicator" title="Click to resume live clock">
+                        <span class="live-dot pulse"></span>
+                        <span class="live-text">LIVE</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Interactive Time Converter Card -->
+            <div class="converter-panel card-glass mb-3">
+                <div class="panel-header d-flex justify-content-between align-items-center mb-2">
+                    <span>Interactive Converter</span>
+                    <button id="btn-sync-time" class="btn-sync d-none" title="Sync to live current time">
+                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                        <span>Sync Live</span>
+                    </button>
+                </div>
+                <div class="slider-display-container d-flex align-items-end justify-content-between">
+                    <span id="slider-time-label" class="slider-time-val">12:00 PM</span>
+                    <span id="slider-date-label" class="slider-date-val">Saturday, Jun 27</span>
+                </div>
+                <div class="slider-wrapper">
+                    <input type="range" id="time-slider" min="0" max="1439" value="720" class="time-range-slider">
                 </div>
             </div>
 
-            <div class="card mb-3 mt-3">
-                <div class="card-header">
-                    <div class="d-flex justify-content-between align-items-center w-100">
-                        <label for="ireland-time">Choose time in Ireland</label>
-                        <input
-                            id="ireland-time"
-                            type="time"
-                            name="ireland-time"
-                            value="00:00"
-                            class="form-control ireland-time-input"
-                        >
-                    </div>
+            <!-- Search & Add Timezone Autocomplete -->
+            <div class="search-panel mb-3 position-relative">
+                <div class="search-input-wrapper">
+                    <svg class="search-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <input type="text" id="timezone-search" class="search-input" placeholder="Search & add city or timezone..." autocomplete="off">
+                    <button id="clear-search-btn" class="clear-btn d-none">
+                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
                 </div>
-                <div class="card-body d-flex flex-column justify-content-between align-items-center">
-                    <div class="d-flex justify-content-between align-items-center w-100">
-                        <label for="appointment-time">Convert time in Vietnam</label>
-                        <div
-                            id="convertTimeVN"
-                            class="d-flex"
-                        >N/A</div>
-                    </div>
-
-                    <div class="d-flex justify-content-between align-items-center w-100 mt-2">
-                        <label for="appointment-time">Convert time in India</label>
-                        <div
-                            id="convertTimeID"
-                            class="d-flex"
-                        >N/A</div>
-                    </div>
-                </div>
-
+                <!-- Autocomplete Dropdown Options -->
+                <div id="search-results" class="autocomplete-dropdown"></div>
             </div>
 
-            <ul class="list-group material-list">
-                <li class="list-group-item d-flex" data-country="UTC">
-                    <div class="me-3 country d-flex">
-                        <strong>UTC</strong>
-                    </div>
-                    <div class="accordion-body d-flex align-items-center w-100" id="utc">
-                        <div class="text-secondary d-flex justify-content-center align-items-center w-100" type="button" disabled>
-                            <span class="material-icons me-2">hourglass_empty</span>
-                            <span role="status">Loading...</span>
-                        </div>
-                    </div>
-                </li>
-                <li class="list-group-item d-flex" data-country="Asia/Ho_Chi_Minh">
-                    <div class="me-3 country d-flex">
-                        <strong>Vietnam</strong>
-                    </div>
-                    <div class="accordion-body d-flex align-items-center w-100" id="vietnam">
-                        <div class="text-secondary d-flex justify-content-center align-items-center w-100" type="button" disabled>
-                            <span class="material-icons me-2">hourglass_empty</span>
-                            <span role="status">Loading...</span>
-                        </div>
-                    </div>
-                </li>
-                <li class="list-group-item d-flex" data-country="Asia/Kolkata">
-                    <div class="me-3 country d-flex">
-                        <strong>India</strong>
-                    </div>
-                    <div class="accordion-body d-flex align-items-center w-100" id="india">
-                        <div class="text-secondary d-flex justify-content-center align-items-center w-100" type="button" disabled>
-                            <span class="material-icons me-2">hourglass_empty</span>
-                            <span role="status">Loading...</span>
-                        </div>
-                    </div>
-                </li>
-                <li class="list-group-item d-flex" data-country="Europe/Dublin">
-                    <div class="me-3 country d-flex">
-                        <strong>Ireland</strong>
-                    </div>
-                    <div class="accordion-body d-flex align-items-center w-100" id="ireland">
-                        <div class="text-secondary d-flex justify-content-center align-items-center w-100" type="button" disabled>
-                            <span class="material-icons me-2">hourglass_empty</span>
-                            <span role="status">Loading...</span>
-                        </div>
-                    </div>
-                </li>
-            </ul>
-
-            <div class="d-flex justify-content-between mt-3 mb-2">
-                <span class="badge rounded-pill text-bg-light d-flex align-items-center">-- Son Nguyen</span>
-                <div class="badge text-bg-primary text-wrap" style="width: 6rem;">
-                    Convert Time v1.1.0
+            <!-- Dynamic Time Cards List -->
+            <div class="timezones-container">
+                <div id="timezone-list" class="timezone-list-grid">
+                    <!-- Cards will be dynamically injected here by popup.js -->
                 </div>
             </div>
+
+            <!-- Footer -->
+            <footer class="app-footer d-flex justify-content-between align-items-center mt-3 pt-3 border-top-glass">
+                <span class="dev-credit">Crafted by Son Nguyen</span>
+                <span class="app-version">v1.2.0</span>
+            </footer>
         </div>
+
+        <!-- Script files -->
         <script src="./scripts/lib/moment.min.js"></script>
         <script src="./scripts/lib/moment-timezone-with-data.min.js"></script>
-        <script src="./scripts/lib/bootstrap.min.js"></script>
-        <script
-            src="./scripts/popup.js"
-            type="module"
-        ></script>
+        <script src="./scripts/popup.js" type="module"></script>
     </body>
 </html>
