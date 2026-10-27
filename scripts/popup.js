@@ -1,6 +1,46 @@
 document.addEventListener("DOMContentLoaded", function () {
-  // --- State Initialization ---
-  let format = localStorage.getItem("format") || "DD-MMM-YYYY hh:mm:ss A"; // default to 12h
+  // --- Storage abstraction: chrome.storage.local (MV3 best practice) ---
+  // Sync chrome.storage → localStorage for immediate read during init
+  const CURRENT_VERSION = "1.2.1";
+  let format = "DD-MMM-YYYY hh:mm:ss A";
+  let activeTimezones = [];
+  let baseTimezone = "Asia/Ho_Chi_Minh";
+
+  function load(key, fallback) {
+    try { return localStorage.getItem(key) ?? fallback; } catch { return fallback; }
+  }
+  function save(key, value) {
+    try {
+      localStorage.setItem(key, value);
+      // Mirror to chrome.storage (persists beyond session, accessible from sw)
+      chrome.storage.local.set({ [key]: value }, () => {});
+    } catch { /* quota or unavailable */ }
+  }
+
+  // Bootstrap from chrome.storage first, fall back to localStorage
+  chrome.storage.local.get(["format", "activeTimezones", "baseTimezone", "app_version"], (stored) => {
+    if (stored.app_version !== CURRENT_VERSION) {
+      save("activeTimezones", JSON.stringify(null));
+      save("baseTimezone", "null");
+      save("app_version", CURRENT_VERSION);
+    }
+    format = stored.format || load("format", "DD-MMM-YYYY hh:mm:ss A");
+    try { activeTimezones = JSON.parse(stored.activeTimezones ?? load("activeTimezones", "null")); } catch { activeTimezones = null; }
+    baseTimezone = stored.baseTimezone || load("baseTimezone", "Asia/Ho_Chi_Minh");
+    if (activeTimezones === null || activeTimezones === undefined) {
+      activeTimezones = ["Asia/Ho_Chi_Minh", "Asia/Kolkata", "Europe/Dublin"];
+      save("activeTimezones", JSON.stringify(activeTimezones));
+    }
+    if (!baseTimezone) {
+      const guessed = (typeof moment !== 'undefined' && moment.tz && moment.tz.guess) ? moment.tz.guess() : "";
+      baseTimezone = ["Asia/Ho_Chi_Minh","Asia/Kolkata","Europe/Dublin"].includes(guessed) ? guessed : "Asia/Ho_Chi_Minh";
+      save("baseTimezone", baseTimezone);
+    }
+    initApp();
+  });
+
+  function initApp() {
+    // ===== All original popup.js code starts here =====
   
   // Curated timezone metadata mapping for flag emojis and country names
   const timezoneMetadata = {
@@ -56,38 +96,11 @@ document.addEventListener("DOMContentLoaded", function () {
     "America/Santiago": { country: "Chile", flag: "🇨🇱" }
   };
   
-  const CURRENT_VERSION = "1.2.1";
-  let lastVersion = localStorage.getItem("app_version");
-  if (lastVersion !== CURRENT_VERSION) {
-    localStorage.removeItem("activeTimezones");
-    localStorage.removeItem("baseTimezone");
-    localStorage.setItem("app_version", CURRENT_VERSION);
-  }
-
-  let activeTimezones = [];
-  try {
-    activeTimezones = JSON.parse(localStorage.getItem("activeTimezones"));
-  } catch (e) {
-    activeTimezones = null;
-  }
+  let prevBaseTimezone = baseTimezone;
+  let isLiveMode = true;
 
   // Define defaults to exactly: Vietnam, India, and Ireland
   const defaults = ["Asia/Ho_Chi_Minh", "Asia/Kolkata", "Europe/Dublin"];
-
-  if (!activeTimezones) {
-    activeTimezones = [...defaults];
-    localStorage.setItem("activeTimezones", JSON.stringify(activeTimezones));
-  }
-
-  let baseTimezone = localStorage.getItem("baseTimezone");
-  if (!baseTimezone) {
-    const guessed = moment.tz.guess();
-    baseTimezone = defaults.includes(guessed) ? guessed : "Asia/Ho_Chi_Minh";
-    localStorage.setItem("baseTimezone", baseTimezone);
-  }
-
-  let prevBaseTimezone = baseTimezone;
-  let isLiveMode = true;
 
   // Curated list of popular timezones shown on empty search focus
   const popularTimezones = [
@@ -256,7 +269,7 @@ document.addEventListener("DOMContentLoaded", function () {
     
     const oldBaseTimezone = baseTimezone;
     baseTimezone = timezone;
-    localStorage.setItem("baseTimezone", baseTimezone);
+    save("baseTimezone", baseTimezone);
     
     // Sync slider position so the custom time conversion stays consistent
     if (isLiveMode) {
@@ -278,11 +291,11 @@ document.addEventListener("DOMContentLoaded", function () {
     cardElement.classList.add("fade-out");
     cardElement.addEventListener("animationend", () => {
       activeTimezones = activeTimezones.filter(tz => tz !== timezone);
-      localStorage.setItem("activeTimezones", JSON.stringify(activeTimezones));
+      save("activeTimezones", JSON.stringify(activeTimezones));
       
       if (baseTimezone === timezone) {
         baseTimezone = activeTimezones[0] || "UTC";
-        localStorage.setItem("baseTimezone", baseTimezone);
+        save("baseTimezone", baseTimezone);
       }
       
       updateDisplay();
@@ -425,7 +438,7 @@ document.addEventListener("DOMContentLoaded", function () {
   // Format Switch toggle
   formatCheckbox.addEventListener("change", () => {
     format = formatCheckbox.checked ? "DD-MMM-YYYY hh:mm:ss A" : "DD-MMM-YYYY HH:mm:ss";
-    localStorage.setItem("format", format);
+    save("format", format);
     updateDisplay();
   });
 
@@ -466,7 +479,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const timezone = item.dataset.timezone;
     if (!activeTimezones.includes(timezone)) {
       activeTimezones.push(timezone);
-      localStorage.setItem("activeTimezones", JSON.stringify(activeTimezones));
+      save("activeTimezones", JSON.stringify(activeTimezones));
       updateDisplay();
       
       // Target the newly added card and add the slide/fade in animation
@@ -484,4 +497,5 @@ document.addEventListener("DOMContentLoaded", function () {
     searchResults.classList.remove("show");
     searchResults.innerHTML = "";
   });
-});
+  } // end initApp
+}); // end DOMContentLoaded
