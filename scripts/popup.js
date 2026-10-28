@@ -1,40 +1,55 @@
 document.addEventListener("DOMContentLoaded", function () {
-  // --- Storage abstraction: chrome.storage.local (MV3 best practice) ---
-  // Sync chrome.storage → localStorage for immediate read during init
+  // --- Storage: chrome.storage.local là nguồn DUY NHẤT (MV3 best practice).
+  // Trước đây dùng song song localStorage + mirror — 2 nguồn dễ lệch nhau,
+  // và giá trị lưu không đồng nhất (JSON string vs raw) gây bug khó truy.
   const CURRENT_VERSION = "1.2.1";
+  const DEFAULT_TIMEZONES = ["Asia/Ho_Chi_Minh", "Asia/Kolkata", "Europe/Dublin"];
   let format = "DD-MMM-YYYY hh:mm:ss A";
   let activeTimezones = [];
   let baseTimezone = "Asia/Ho_Chi_Minh";
 
-  function load(key, fallback) {
-    try { return localStorage.getItem(key) ?? fallback; } catch { return fallback; }
-  }
   function save(key, value) {
-    try {
-      localStorage.setItem(key, value);
-      // Mirror to chrome.storage (persists beyond session, accessible from sw)
-      chrome.storage.local.set({ [key]: value }, () => {});
-    } catch { /* quota or unavailable */ }
+    chrome.storage.local.set({ [key]: String(value) }, () => {
+      if (chrome.runtime.lastError) console.warn("storage.save failed:", chrome.runtime.lastError.message);
+    });
   }
 
-  // Bootstrap from chrome.storage first, fall back to localStorage
+  // Bootstrap from chrome.storage
   chrome.storage.local.get(["format", "activeTimezones", "baseTimezone", "app_version"], (stored) => {
+    if (chrome.runtime.lastError) stored = {};
+
+    // Version migration: reset danh sách timezone về default.
+    // BUG CŨ: save("baseTimezone", "null") ghi chuỗi literal "null" — truthy,
+    // qua được guard `||` ở dưới → moment.tz("null") ném lỗi, app chết đến
+    // khi user tự xóa storage. Reset về default zone hợp lệ.
     if (stored.app_version !== CURRENT_VERSION) {
       save("activeTimezones", JSON.stringify(null));
-      save("baseTimezone", "null");
+      save("baseTimezone", DEFAULT_TIMEZONES[0]);
       save("app_version", CURRENT_VERSION);
+      stored.baseTimezone = DEFAULT_TIMEZONES[0];
     }
-    format = stored.format || load("format", "DD-MMM-YYYY hh:mm:ss A");
-    try { activeTimezones = JSON.parse(stored.activeTimezones ?? load("activeTimezones", "null")); } catch { activeTimezones = null; }
-    baseTimezone = stored.baseTimezone || load("baseTimezone", "Asia/Ho_Chi_Minh");
-    if (activeTimezones === null || activeTimezones === undefined) {
-      activeTimezones = ["Asia/Ho_Chi_Minh", "Asia/Kolkata", "Europe/Dublin"];
+
+    format = stored.format || "DD-MMM-YYYY hh:mm:ss A";
+    try { activeTimezones = JSON.parse(stored.activeTimezones ?? "null"); } catch { activeTimezones = null; }
+    baseTimezone = stored.baseTimezone || DEFAULT_TIMEZONES[0];
+
+    // Validate baseTimezone: chặn giá trị hỏng từ storage cũ (vd chuỗi "null"
+    // đã từng bị ghi bởi bug trên) làm chết toàn bộ popup.
+    if (!moment.tz.zone(baseTimezone)) {
+      const guessed = moment.tz.guess();
+      baseTimezone = DEFAULT_TIMEZONES.includes(guessed) ? guessed : "UTC";
+      save("baseTimezone", baseTimezone);
+    }
+
+    if (!Array.isArray(activeTimezones)) {
+      activeTimezones = DEFAULT_TIMEZONES.slice();
       save("activeTimezones", JSON.stringify(activeTimezones));
     }
-    if (!baseTimezone) {
-      const guessed = (typeof moment !== 'undefined' && moment.tz && moment.tz.guess) ? moment.tz.guess() : "";
-      baseTimezone = ["Asia/Ho_Chi_Minh","Asia/Kolkata","Europe/Dublin"].includes(guessed) ? guessed : "Asia/Ho_Chi_Minh";
-      save("baseTimezone", baseTimezone);
+    // Lọc bỏ timezone không hợp lệ (storage cũ có thể chứa rác)
+    activeTimezones = activeTimezones.filter(tz => moment.tz.zone(tz));
+    if (!activeTimezones.length) {
+      activeTimezones = DEFAULT_TIMEZONES.slice();
+      save("activeTimezones", JSON.stringify(activeTimezones));
     }
     initApp();
   });
@@ -361,7 +376,8 @@ document.addEventListener("DOMContentLoaded", function () {
   function renderSearchAutocomplete(query) {
     const suggestions = getSuggestions(query);
     if (suggestions.length === 0) {
-      searchResults.innerHTML = `<div class="no-results">No countries or timezones found for "${query}"</div>`;
+      const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      searchResults.innerHTML = `<div class="no-results">No countries or timezones found for "${esc(query)}"</div>`;
       searchResults.classList.add("show");
       return;
     }
