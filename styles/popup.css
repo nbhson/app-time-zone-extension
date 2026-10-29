@@ -1,30 +1,81 @@
-/* Glassmorphism Dark Theme Design System */
+/* Glassmorphism Design System — dark + light (prefers-color-scheme) */
 
 :root {
     --bg-gradient: linear-gradient(145deg, #09070f 0%, #120e24 100%);
-    --card-bg: rgba(255, 255, 255, 0.03);
-    --card-bg-hover: rgba(255, 255, 255, 0.06);
-    --card-border: rgba(255, 255, 255, 0.08);
+    --card-bg: var(--surface-subtle);
+    --card-bg-hover: var(--surface-raise-hover);
+    --card-border: var(--surface-raise-hover);
     --card-border-hover: rgba(255, 255, 255, 0.15);
     --card-border-active: rgba(99, 102, 241, 0.4);
     --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
     --card-glow-active: 0 0 15px rgba(99, 102, 241, 0.25);
-    
+
+    /* Surfaces (dropdown, chips, subtle fills) */
+    --surface-solid: #110e20;
+    --surface-raise: var(--surface-raise);
+    --surface-raise-hover: var(--surface-raise-hover);
+    --surface-subtle: var(--surface-subtle);
+    --divider: var(--surface-raise-hover);
+
     /* Brand Colors */
     --primary-gradient: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
     --secondary-gradient: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
     --accent-glow: rgba(99, 102, 241, 0.4);
-    
+
     /* Text Colors */
     --text-primary: #f8fafc;
     --text-secondary: #94a3b8;
     --text-muted: #64748b;
     --text-accent: #818cf8;
-    
+    --time-gradient: linear-gradient(135deg, #60a5fa, #a78bfa);
+
     /* Status Colors */
     --color-success: #10b981;
     --color-error: #ef4444;
     --color-warning: #f59e0b;
+
+    /* Meeting planner severity */
+    --planner-work: rgba(16, 185, 129, 0.22);
+    --planner-work-text: #6ee7b7;
+    --planner-evening: rgba(245, 158, 11, 0.18);
+    --planner-evening-text: #fcd34d;
+    --planner-night: var(--surface-subtle);
+    --planner-night-text: var(--text-muted);
+
+    --focus-ring: 0 0 0 2px var(--surface-solid), 0 0 0 4px rgba(99, 102, 241, 0.7);
+    color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+    :root {
+        --bg-gradient: linear-gradient(145deg, #eef1f8 0%, #e3e8f7 100%);
+        --card-bg: rgba(255, 255, 255, 0.65);
+        --card-bg-hover: rgba(255, 255, 255, 0.85);
+        --card-border: rgba(15, 23, 42, 0.1);
+        --card-border-hover: rgba(15, 23, 42, 0.2);
+        --card-border-active: rgba(79, 70, 229, 0.45);
+        --card-shadow: 0 8px 24px 0 rgba(15, 23, 42, 0.08);
+        --card-glow-active: 0 0 15px rgba(99, 102, 241, 0.2);
+
+        --surface-solid: #ffffff;
+        --surface-raise: rgba(15, 23, 42, 0.05);
+        --surface-raise-hover: rgba(15, 23, 42, 0.1);
+        --surface-subtle: rgba(15, 23, 42, 0.04);
+        --divider: rgba(15, 23, 42, 0.1);
+
+        --text-primary: #0f172a;
+        --text-secondary: #475569;
+        --text-muted: #94a3b8;
+        --text-accent: #4f46e5;
+        --time-gradient: linear-gradient(135deg, #2563eb, #7c3aed);
+        --planner-work: rgba(16, 185, 129, 0.18);
+        --planner-work-text: #047857;
+        --planner-evening: rgba(245, 158, 11, 0.16);
+        --planner-evening-text: #b45309;
+        --planner-night: rgba(15, 23, 42, 0.06);
+        --planner-night-text: #64748b;
+        color-scheme: light;
+    }
 }
 
 * {
@@ -34,7 +85,7 @@
 }
 
 body {
-    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     background: var(--bg-gradient);
     color: var(--text-primary);
     min-width: 440px;
@@ -42,19 +93,25 @@ body {
     overflow-x: hidden;
 }
 
+/* Accessible keyboard focus (R2-8) */
+:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
     width: 6px;
 }
 ::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.01);
+    background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--surface-raise-hover);
     border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: var(--card-border-hover);
 }
 
 .app-container {
@@ -67,7 +124,7 @@ body {
 }
 
 .brand-logo-container {
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--surface-raise);
     padding: 8px;
     border-radius: 12px;
     border: 1px solid var(--card-border);
@@ -85,7 +142,7 @@ body {
     font-size: 18px;
     font-weight: 700;
     letter-spacing: -0.5px;
-    background: linear-gradient(135deg, #ffffff 50%, #a5b4fc 100%);
+    background: var(--text-primary);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
@@ -112,7 +169,7 @@ body {
     justify-content: space-between;
     width: 72px;
     height: 28px;
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--surface-raise);
     border: 1px solid var(--card-border);
     border-radius: 20px;
     position: relative;
@@ -251,7 +308,7 @@ body {
 }
 
 .btn-sync {
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--surface-raise);
     border: 1px solid var(--card-border);
     color: var(--text-primary);
     padding: 4px 8px;
@@ -266,12 +323,12 @@ body {
 }
 
 .btn-sync:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.2);
+    background: var(--surface-raise-hover);
+    border-color: var(--card-border-hover);
 }
 
 .slider-display-container {
-    border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+    border-bottom: 1px dashed var(--divider);
     padding-bottom: 10px;
 }
 
@@ -280,7 +337,7 @@ body {
     font-weight: 700;
     letter-spacing: -0.5px;
     color: var(--text-primary);
-    background: linear-gradient(135deg, #60a5fa, #a78bfa);
+    background: var(--time-gradient);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
@@ -301,7 +358,7 @@ body {
     -webkit-appearance: none;
     width: 100%;
     height: 6px;
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--surface-raise-hover);
     border-radius: 3px;
     outline: none;
     transition: background 0.3s;
@@ -342,7 +399,7 @@ body {
 .search-input {
     width: 100%;
     height: 44px;
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--surface-subtle);
     border: 1px solid var(--card-border);
     border-radius: 12px;
     padding: 0 40px 0 42px;
@@ -356,7 +413,7 @@ body {
 }
 
 .search-input:focus {
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--surface-raise-hover);
     border-color: rgba(99, 102, 241, 0.5);
     box-shadow: 0 0 12px rgba(99, 102, 241, 0.15);
 }
@@ -382,7 +439,7 @@ body {
 }
 
 .clear-btn:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--surface-raise-hover);
     color: var(--text-primary);
 }
 
@@ -392,8 +449,8 @@ body {
     top: 48px;
     left: 0;
     right: 0;
-    background: #110e20;
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: var(--surface-solid);
+    border: 1px solid var(--card-border-hover);
     border-radius: 12px;
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6);
     max-height: 250px;
@@ -420,7 +477,7 @@ body {
     justify-content: space-between;
     align-items: center;
     transition: all 0.15s ease;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid var(--surface-subtle);
 }
 
 .autocomplete-item:last-child {
@@ -428,7 +485,7 @@ body {
 }
 
 .autocomplete-item:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--surface-raise-hover);
     color: var(--text-primary);
 }
 
@@ -439,7 +496,7 @@ body {
 .autocomplete-item .timezone-offset {
     font-size: 11px;
     color: var(--text-muted);
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--surface-subtle);
     padding: 2px 6px;
     border-radius: 4px;
 }
@@ -465,7 +522,7 @@ body {
     justify-content: space-between;
     padding: 14px 16px;
     border-radius: 14px;
-    background: rgba(255, 255, 255, 0.02);
+    background: var(--surface-subtle);
     border: 1px solid var(--card-border);
     transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
     position: relative;
@@ -473,7 +530,7 @@ body {
 }
 
 .timezone-card:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--surface-subtle);
     border-color: var(--card-border-hover);
     transform: translateY(-1px);
 }
@@ -526,7 +583,7 @@ body {
     font-weight: 700;
     padding: 2px 6px;
     border-radius: 4px;
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--surface-raise);
     color: var(--text-secondary);
 }
 
@@ -599,7 +656,7 @@ body {
     height: 28px;
     border-radius: 50%;
     border: 1px solid var(--card-border);
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--surface-subtle);
     color: var(--text-secondary);
     cursor: pointer;
     display: flex;
@@ -609,9 +666,9 @@ body {
 }
 
 .action-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--surface-raise-hover);
     color: var(--text-primary);
-    border-color: rgba(255, 255, 255, 0.2);
+    border-color: var(--card-border-hover);
 }
 
 .action-btn.copy:hover {
@@ -661,7 +718,7 @@ body {
 
 /* Footer styling */
 .border-top-glass {
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-top: 1px solid var(--divider);
 }
 
 .app-footer {
@@ -679,10 +736,10 @@ body {
 }
 
 .app-version {
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--surface-subtle);
     padding: 2px 8px;
     border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--surface-subtle);
 }
 
 /* Keyframes */
@@ -695,4 +752,246 @@ body {
         transform: scale(1.6);
         opacity: 0;
     }
+}
+/* ===== Round 2 additions ===== */
+
+/* List header (title + actions) */
+.list-header {
+    padding: 0 2px;
+}
+
+.list-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.zone-count {
+    color: var(--text-muted);
+    font-weight: 700;
+}
+
+.header-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    border: 1px solid var(--card-border);
+    background: var(--surface-raise);
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.header-btn:hover {
+    background: var(--surface-raise-hover);
+    color: var(--text-primary);
+    border-color: var(--card-border-hover);
+}
+
+.header-btn.copied,
+.header-btn[aria-pressed="true"] {
+    background: rgba(99, 102, 241, 0.15);
+    color: var(--text-accent);
+    border-color: var(--card-border-active);
+}
+
+/* Day-diff badges (+1d / -1d) */
+.day-badge {
+    font-size: 8px;
+    font-weight: 700;
+    padding: 2px 4px;
+    border-radius: 4px;
+}
+
+.day-badge.day-ahead {
+    background: rgba(239, 68, 68, 0.12);
+    color: var(--color-error);
+}
+
+.day-badge.day-behind {
+    background: rgba(16, 185, 129, 0.12);
+    color: var(--color-success);
+}
+
+/* Empty state */
+.empty-state {
+    text-align: center;
+    padding: 32px 16px;
+    border: 1px dashed var(--card-border);
+    border-radius: 14px;
+    background: var(--surface-subtle);
+}
+
+.empty-state-icon {
+    display: block;
+    font-size: 24px;
+    margin-bottom: 8px;
+}
+
+.empty-state-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+}
+
+.empty-state-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+/* Search dropdown: keyboard focus + "added" marker */
+.autocomplete-item.active,
+.autocomplete-item:hover {
+    background: var(--surface-raise-hover);
+    color: var(--text-primary);
+}
+
+.autocomplete-item .added-badge {
+    font-size: 8px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-accent);
+    background: rgba(99, 102, 241, 0.12);
+    border-radius: 4px;
+    padding: 1px 5px;
+    margin-left: 6px;
+}
+
+/* Drag & drop reorder */
+.timezone-card.dragging {
+    opacity: 0.45;
+    border-style: dashed;
+    border-color: var(--card-border-active);
+}
+
+/* Meeting Planner (F2) */
+.planner-section {
+    padding: 14px 16px;
+}
+
+.planner-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+}
+
+.planner-row {
+    display: grid;
+    grid-template-columns: 92px repeat(12, minmax(26px, 1fr));
+    gap: 3px;
+    align-items: stretch;
+}
+
+.planner-zone-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-right: 4px;
+}
+
+.planner-zone-label.is-base {
+    color: var(--text-accent);
+}
+
+.planner-hour-label {
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-align: center;
+    align-self: end;
+    padding-bottom: 2px;
+    white-space: nowrap;
+}
+
+.planner-cell {
+    border: none;
+    border-radius: 5px;
+    padding: 6px 0;
+    font-size: 9px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    transition: transform 0.12s ease, filter 0.12s ease;
+    color: var(--planner-night-text);
+    background: var(--planner-night);
+}
+
+.planner-cell.work {
+    background: var(--planner-work);
+    color: var(--planner-work-text);
+}
+
+.planner-cell.evening {
+    background: var(--planner-evening);
+    color: var(--planner-evening-text);
+}
+
+.planner-cell.is-now {
+    outline: 1px solid var(--card-border-active);
+}
+
+.planner-cell:hover {
+    filter: brightness(1.25);
+    transform: scale(1.08);
+    z-index: 1;
+}
+
+.planner-legend {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.legend-chip {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+.legend-work {
+    background: var(--planner-work);
+    color: var(--planner-work-text);
+}
+
+.legend-evening {
+    background: var(--planner-evening);
+    color: var(--planner-evening-text);
+}
+
+.legend-night {
+    background: var(--planner-night);
+    color: var(--planner-night-text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+.timezone-card.drag-over-top {
+    box-shadow: 0 -3px 0 0 var(--text-accent);
+}
+
+.timezone-card.drag-over-bottom {
+    box-shadow: 0 3px 0 0 var(--text-accent);
 }
