@@ -106,3 +106,59 @@
 - Bootstrap.min.css + font-awesome.min.css còn trong bundle (chỉ dùng vài utility
   class: d-flex, mb-3, me-1...); có thể bỏ trong đợt sau để giảm payload.
 
+## Round 4 — Vendor CSS removal + keyboard reorder (2026-10-29)
+
+### Findings (audit đợt 4)
+
+| # | Severity | Vị trí | Vấn đề | Fix |
+|---|----------|--------|--------|-----|
+| R4-1 | MAJOR | styles/lib/ | bootstrap.min.css (227 KB) + font-awesome.min.css (94 KB) trong bundle; audit ra đúng 17 utility class đang dùng (`d-flex, d-none, flex-column, justify-content-between, align-items-center/end, gap-2/3, m-0, mt-1/3, mb-2/3, me-1, pt-3, position-relative`); font-awesome **0 class** dùng (mọi icon là inline SVG) | Utility layer ~20 rule trong popup.css; xoá cả 2 vendor file |
+| R4-2 | MAJOR | popup.css :root | **Token cycle**: `--surface-raise: var(--surface-raise)` (và raise-hover/subtle) — self-reference → guaranteed-invalid per CSS spec → mọi surface token **undefined ở dark theme** (light re-define nên chỉ dark gãy: toggle/card/dropdown nền transparent) | Định nghĩa giá trị thật trong :root |
+| R4-3 | MAJOR | popup.html | HTML5 DnD reorder hỏng trên một số Linux WM, không có path thay thế (a11y gap) | Nút move-up/move-down (aria-label, disabled ở biên) + `moveItem()` pure; `.card-actions` hiện khi `:focus-within` |
+| R4-4 | MINOR | scripts/lib/bootstrap.min.js | 80 KB JS không được tham chiếu ở đâu (popup.html chỉ load moment + popup.js) | Xoá |
+| R4-5 | MINOR | popup.css | `.search-input:focus + .search-icon` chết — icon đứng TRƯỚC input trong DOM, sibling combinator không bao giờ khớp | `.search-input-wrapper:focus-within .search-icon` |
+| R4-6 | MINOR | popup.css | Bootstrap reboot bị drop theo vendor CSS → mất `button/input { font-family: inherit }` + body `line-height: 1.5` | Thêm mini-reboot (button/input inherit font; body line-height 1.5) |
+| R4-7 | MINOR | popup.js | Click-outside handler chỉ remove `.show`, không reset `aria-expanded`/activedescendant | Gọi `closeSearch()` |
+| R4-8 | MINOR | images/.DS_Store | Vẫn còn tracked trong git dù commit 55eba9b tưởng đã untrack | `git rm --cached`, .gitignore đã có sẵn |
+
+### Kết quả
+
+- **Payload**: shipped extension dir **1473.6 KB → 1077.0 KB (−396.6 KB, −27%)**.
+  Bỏ: bootstrap.min.css 227 KB + font-awesome.min.css 94 KB + bootstrap.min.js 79 KB
+  (bonus, dead code) + 6 KB .DS_Store; popup.css chỉ tăng ~4 KB cho utility layer.
+- **Keyboard reorder (R4-3)**: mỗi card có 2 nút ▲/▼ trong card-actions, disabled
+  ở biên (first/last), aria-label "Move {city} up/down". Logic chung hoá qua
+  `moveItem(list, from, to)` (pure, dùng lại cho cả `reorderZones` của DnD).
+  `.card-actions` giờ hiện khi hover **hoặc focus-within** (keyboard user thấy được).
+- **Dark theme (R4-2)**: surface tokens có giá trị thật; thêm `--dropdown-shadow`
+  token hoá shadow dropdown cho cả 2 theme.
+- **Version bump**: manifest + popup.js + footer → 1.4.0.
+- **Tests**: 3 test mới cho `moveItem` (forward/backward/no-op, pure không mutate,
+  degrade an toàn với index lệch/null/empty). **16/16 pass**.
+
+### Trạng thái Round 4
+- [x] Audit class usage + thay utility layer
+- [x] Xoá vendor CSS/JS khỏi package
+- [x] Dark/light coverage cross-check (116 class tham chiếu, hết thiếu sót)
+- [x] Keyboard reorder a11y + moveItem + tests
+- [x] npm test 16/16, node --check toàn bộ JS, manifest MV3 valid
+- [x] Commit + self-review (local only, không push)
+
+### Review Log Round 4
+- Self-review vòng 1: fix typo `toIndexOutOfBounds` sót lại từ bản nháp moveZone;
+  merge rule `body { line-height }` vào body chính thay vì 2 block; cross-check
+  tự động class-used vs CSS-defined (sau khi trừ artifact của template literal,
+  mọi class đều có rule hoặc là structural hook cố tình không style).
+- Lưu ý dump: 2 lần edit giữa chừng bị ngắt kết nối (ECONNRESET) — đã đọc lại
+  file xác nhận trạng thái trước khi làm tiếp, không có edit mồ côi.
+
+### Rủi ro còn lại (Round 4)
+- Không load thử popup trong Chrome thật (môi trường headless) — xác minh bằng
+  cross-check class + brace balance + node --check; khuyến nghị 1 lần Load
+  unpacked thủ công ở cả light/dark.
+- `card-flag`, `converter-panel`, `header-controls`, `timezones-container`,
+  `search-panel`, `planner-header-row` là structural hooks không có rule — vô hại
+  nhưng có thể dọn trong đợt sau.
+- moment-timezone-with-data (780 KB) vẫn chiếm ~72% payload — có thể thay bằng
+  data subset chỉ với các zone trong metadata nếu muốn giảm sâu hơn.
+
