@@ -12,10 +12,11 @@
 
     /* Surfaces (dropdown, chips, subtle fills) */
     --surface-solid: #110e20;
-    --surface-raise: var(--surface-raise);
-    --surface-raise-hover: var(--surface-raise-hover);
-    --surface-subtle: var(--surface-subtle);
+    --surface-raise: rgba(255, 255, 255, 0.06);
+    --surface-raise-hover: rgba(255, 255, 255, 0.12);
+    --surface-subtle: rgba(255, 255, 255, 0.045);
     --divider: var(--surface-raise-hover);
+    --dropdown-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6);
 
     /* Brand Colors */
     --primary-gradient: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
@@ -62,6 +63,7 @@
         --surface-raise-hover: rgba(15, 23, 42, 0.1);
         --surface-subtle: rgba(15, 23, 42, 0.04);
         --divider: rgba(15, 23, 42, 0.1);
+        --dropdown-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.18);
 
         --text-primary: #0f172a;
         --text-secondary: #475569;
@@ -84,8 +86,39 @@
     padding: 0;
 }
 
+/* Minimal "reboot" (Round 4: thay phần ta cần của bootstrap reboot) */
+button,
+input,
+optgroup,
+select,
+textarea {
+    font-family: inherit;
+    font-size: 100%;
+    line-height: inherit;
+}
+
+/* ===== Utility layer (Round 4: replaces bundled bootstrap.min.css) =====
+   Chỉ chứa đúng các class đang được dùng trong popup.html/popup.js. */
+.d-flex { display: flex; }
+.d-none { display: none !important; } /* !important: thắng .btn-sync { display:flex } */
+.flex-column { flex-direction: column; }
+.justify-content-between { justify-content: space-between; }
+.align-items-center { align-items: center; }
+.align-items-end { align-items: flex-end; }
+.position-relative { position: relative; }
+.gap-2 { gap: 8px; }
+.gap-3 { gap: 16px; }
+.m-0 { margin: 0; }
+.mt-1 { margin-top: 4px; }
+.mt-3 { margin-top: 16px; }
+.mb-2 { margin-bottom: 8px; }
+.mb-3 { margin-bottom: 16px; }
+.me-1 { margin-right: 4px; }
+.pt-3 { padding-top: 16px; }
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
     background: var(--bg-gradient);
     color: var(--text-primary);
     min-width: 440px;
@@ -418,7 +451,7 @@ body {
     box-shadow: 0 0 12px rgba(99, 102, 241, 0.15);
 }
 
-.search-input:focus + .search-icon {
+.search-input-wrapper:focus-within .search-icon {
     color: var(--text-accent);
 }
 
@@ -452,7 +485,7 @@ body {
     background: var(--surface-solid);
     border: 1px solid var(--card-border-hover);
     border-radius: 12px;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6);
+    box-shadow: var(--dropdown-shadow);
     max-height: 250px;
     overflow-y: auto;
     z-index: 100;
@@ -646,7 +679,8 @@ body {
     transition: all 0.2s ease;
 }
 
-.timezone-card:hover .card-actions {
+.timezone-card:hover .card-actions,
+.timezone-card:focus-within .card-actions {
     opacity: 1;
     transform: translateX(0);
 }
@@ -681,6 +715,18 @@ body {
     background: rgba(239, 68, 68, 0.1);
     color: var(--color-error);
     border-color: rgba(239, 68, 68, 0.2);
+}
+
+/* Keyboard reorder buttons (Round 4: a11y alternative cho HTML5 DnD) */
+.action-btn.move:hover:not(:disabled) {
+    background: rgba(99, 102, 241, 0.1);
+    color: var(--text-accent);
+    border-color: var(--card-border-active);
+}
+
+.action-btn.move:disabled {
+    opacity: 0.35;
+    cursor: default;
 }
 
 /* Card Animation states */

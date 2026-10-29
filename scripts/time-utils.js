@@ -70,3 +70,24 @@ export function dayDiff(fromDateStr, toDateStr) {
   if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return 0;
   return Math.round((to - from) / 86400000);
 }
+
+/**
+ * Di chuyển một phần tử trong list sang index mới (pure — không mutate input).
+ * Dùng chung cho cả drag & drop reorder lẫn nút move-up/move-down.
+ * Trả về list mới; trả về bản sao nguyên vẹn nếu index không hợp lệ.
+ */
+export function moveItem(list, fromIndex, toIndex) {
+  if (!Array.isArray(list)) return [];
+  if (
+    !Number.isInteger(fromIndex) || !Number.isInteger(toIndex) ||
+    fromIndex < 0 || fromIndex >= list.length ||
+    toIndex < 0 || toIndex >= list.length ||
+    fromIndex === toIndex
+  ) {
+    return list.slice();
+  }
+  const next = list.slice();
+  const [item] = next.splice(fromIndex, 1);
+  next.splice(toIndex, 0, item);
+  return next;
+}

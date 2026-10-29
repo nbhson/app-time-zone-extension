@@ -5,6 +5,7 @@ import {
   formatOffsetDiff,
   dayCategory,
   dayDiff,
+  moveItem,
 } from "./time-utils.js";
 import { timezoneMetadata, popularTimezones } from "./zone-metadata.js";
 
@@ -13,7 +14,7 @@ document.addEventListener("DOMContentLoaded", function () {
   // Round 1 đã bỏ dual-storage (localStorage + mirror). Round 2: tách
   // STORAGE_VERSION khỏi app version — chỉ migrate khi schema đổi thật,
   // không xoá dữ liệu user mỗi lần release bump version.
-  const CURRENT_APP_VERSION = "1.3.0";
+  const CURRENT_APP_VERSION = "1.4.0";
   const STORAGE_VERSION = 2;
   const FORMAT_12H = "DD-MMM-YYYY hh:mm:ss A";
   const FORMAT_24H = "DD-MMM-YYYY HH:mm:ss";
@@ -176,8 +177,10 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     let html = "";
-    activeTimezones.forEach(tz => {
+    activeTimezones.forEach((tz, idx) => {
       const isBase = (tz === baseTimezone);
+      const isFirst = (idx === 0);
+      const isLast = (idx === activeTimezones.length - 1);
       const cardTime = baseTime.clone().tz(tz);
       const timeFormatted = cardTime.format(showAmPm ? "hh:mm:ss" : "HH:mm:ss");
       const ampm = showAmPm ? cardTime.format("A") : "";
@@ -221,6 +224,12 @@ document.addEventListener("DOMContentLoaded", function () {
                     ${ampm ? `<span class="card-ampm ${ampm.toLowerCase()}">${ampm}</span>` : ""}
                 </div>
                 <div class="card-actions">
+                    <button class="action-btn move move-up" title="Move up" aria-label="Move ${escapeHtml(city)} up in the list"${isFirst ? " disabled" : ""}>
+                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="18 15 12 9 3 15"></polyline></svg>
+                    </button>
+                    <button class="action-btn move move-down" title="Move down" aria-label="Move ${escapeHtml(city)} down in the list"${isLast ? " disabled" : ""}>
+                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </button>
                     <button class="action-btn copy" title="Copy formatted time" aria-label="Copy time for ${escapeHtml(city)}">
                         <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                     </button>
@@ -547,13 +556,24 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function reorderZones(sourceTz, targetTz, before) {
     const fromIdx = activeTimezones.indexOf(sourceTz);
-    let targetIdx = activeTimezones.indexOf(targetTz);
+    const targetIdx = activeTimezones.indexOf(targetTz);
     if (fromIdx < 0 || targetIdx < 0) return;
     // Dịch target nếu kéo xuống dưới (remove trước khi insert làm lệch index)
     const adjusted = fromIdx < targetIdx && !before ? targetIdx - 1 : targetIdx;
-    activeTimezones.splice(fromIdx, 1);
-    activeTimezones.splice(adjusted, 0, sourceTz);
+    activeTimezones = moveItem(activeTimezones, fromIdx, adjusted);
     lastCardsHtml = null;
+  }
+
+  // Round 4: reorder bằng bàn phím (move-up/move-down buttons) — không phụ thuộc
+  // HTML5 drag & drop, vốn hỏng trên một số Linux WM. Cũng chính là a11y path.
+  function moveZone(timezone, delta) {
+    const fromIdx = activeTimezones.indexOf(timezone);
+    const toIdx = fromIdx + delta;
+    if (fromIdx < 0 || toIdx < 0 || toIdx >= activeTimezones.length) return;
+    activeTimezones = moveItem(activeTimezones, fromIdx, toIdx);
+    saveZones();
+    lastCardsHtml = null;
+    updateDisplay();
   }
 
   function handleDragEnd() {
@@ -563,7 +583,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
   // ===== Event Listeners =====
 
-  // Card Event Delegation (Base select / Copy / Delete)
+  // Card Event Delegation (Base select / Reorder / Copy / Delete)
   timezoneList.addEventListener("click", (e) => {
     const card = e.target.closest(".timezone-card");
     if (!card) return;
@@ -573,6 +593,20 @@ document.addEventListener("DOMContentLoaded", function () {
     if (deleteBtn) {
       e.stopPropagation();
       removeTimezone(timezone, card);
+      return;
+    }
+
+    const moveUpBtn = e.target.closest(".action-btn.move-up");
+    if (moveUpBtn && !moveUpBtn.disabled) {
+      e.stopPropagation();
+      moveZone(timezone, -1);
+      return;
+    }
+
+    const moveDownBtn = e.target.closest(".action-btn.move-down");
+    if (moveDownBtn && !moveDownBtn.disabled) {
+      e.stopPropagation();
+      moveZone(timezone, 1);
       return;
     }
 
@@ -587,8 +621,8 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   // Keyboard a11y cho card (Enter/Space = set base).
-  // Nếu focus đang nằm trên button con (copy/delete) thì bỏ qua — để button
-  // tự xử lý phím, tránh set base ngoài ý muốn.
+  // Nếu focus đang nằm trên button con (move/copy/delete) thì bỏ qua — để
+  // button tự xử lý phím, tránh set base ngoài ý muốn.
   timezoneList.addEventListener("keydown", (e) => {
     if (e.target.closest(".card-actions")) return;
     const card = e.target.closest(".timezone-card");
@@ -664,10 +698,10 @@ document.addEventListener("DOMContentLoaded", function () {
     timezoneSearch.focus();
   });
 
-  // Close search suggestions on outer click
+  // Close search suggestions on outer click (cũng reset aria-expanded/state)
   document.addEventListener("click", (e) => {
     if (!timezoneSearch.contains(e.target) && !searchResults.contains(e.target)) {
-      searchResults.classList.remove("show");
+      closeSearch();
     }
   });
 

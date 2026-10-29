@@ -22,8 +22,7 @@ Chronos Time is a beautiful and interactive browser extension that helps you kee
 
 - JavaScript (ES6+)
 - [Moment.js](https://momentjs.com/) & [Moment Timezone](https://momentjs.com/timezone/)
-- [Bootstrap 5](https://getbootstrap.com/)
-- Google Fonts (Plus Jakarta Sans)
+- Custom CSS design system (design tokens, light/dark, zero vendor CSS)
 
 ## Author
 

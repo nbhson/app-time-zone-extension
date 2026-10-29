@@ -9,6 +9,7 @@ import {
   formatOffsetDiff,
   dayCategory,
   dayDiff,
+  moveItem,
 } from "../scripts/time-utils.js";
 test("escapeHtml neutralises HTML metacharacters (XSS)", () => {
   assert.equal(escapeHtml('<img src=x onerror="alert(1)">'), "&lt;img src=x onerror=&quot;alert(1)&quot;&gt;");
@@ -69,4 +70,29 @@ test("dayDiff computes whole-day deltas across DST/leap boundaries", () => {
   assert.equal(dayDiff("2024-02-28", "2024-03-01"), 2);  // leap year 29 Feb
   assert.equal(dayDiff("2026-10-31", "2026-11-02"), 2);  // US DST ends Nov 1 2026
   assert.equal(dayDiff("bad", "2026-01-01"), 0);          // malformed input → 0
+});
+
+test("moveItem moves an element forward and backward (pure)", () => {
+  assert.deepEqual(moveItem(["a", "b", "c", "d"], 0, 3), ["b", "c", "d", "a"]);
+  assert.deepEqual(moveItem(["a", "b", "c", "d"], 3, 0), ["d", "a", "b", "c"]);
+  assert.deepEqual(moveItem(["a", "b", "c"], 1, 1), ["a", "b", "c"]);   // no-op
+});
+
+test("moveItem does not mutate the input array", () => {
+  const input = ["x", "y", "z"];
+  const result = moveItem(input, 0, 2);
+  assert.deepEqual(input, ["x", "y", "z"]);       // original untouched
+  assert.deepEqual(result, ["y", "z", "x"]);
+  assert.notEqual(result, input);                 // new array, not same ref
+});
+
+test("moveItem degrades safely on invalid indices / input", () => {
+  const input = ["a", "b"];
+  assert.deepEqual(moveItem(input, -1, 0), ["a", "b"]);   // fromIndex < 0
+  assert.deepEqual(moveItem(input, 0, 5), ["a", "b"]);    // toIndex out of range
+  assert.deepEqual(moveItem(input, -1, -1), ["a", "b"]);  // both out of range
+  assert.deepEqual(moveItem(input, NaN, 1), ["a", "b"]);  // non-integer
+  assert.deepEqual(moveItem(input, 0.5, 1), ["a", "b"]);  // fractional
+  assert.deepEqual(moveItem(null, 0, 1), []);             // not an array
+  assert.deepEqual(moveItem([], 0, 0), []);               // empty list
 });
