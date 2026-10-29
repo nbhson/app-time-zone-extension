@@ -1,0 +1,7 @@
+{
+  "name": "app-time-zone-extension",
+  "private": true,
+  "scripts": {
+    "test": "node --test"
+  }
+}
