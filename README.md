@@ -1,5 +1,7 @@
 # Chronos Time - Time Zone Converter Extension
 
+[![CI](https://github.com/nbhson/app-time-zone-extension/actions/workflows/ci.yml/badge.svg)](https://github.com/nbhson/app-time-zone-extension/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Chronos Time is a beautiful and interactive browser extension that helps you keep track of the current time across multiple countries and time zones.
 
 ## Features
