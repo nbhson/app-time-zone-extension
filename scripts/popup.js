@@ -14,7 +14,8 @@ document.addEventListener("DOMContentLoaded", function () {
   // Round 1 đã bỏ dual-storage (localStorage + mirror). Round 2: tách
   // STORAGE_VERSION khỏi app version — chỉ migrate khi schema đổi thật,
   // không xoá dữ liệu user mỗi lần release bump version.
-  const CURRENT_APP_VERSION = "1.4.0";
+  // Version lấy từ manifest — single source of truth, không hardcode (tránh drift)
+  const CURRENT_APP_VERSION = chrome.runtime.getManifest().version;
   const STORAGE_VERSION = 2;
   const FORMAT_12H = "DD-MMM-YYYY hh:mm:ss A";
   const FORMAT_24H = "DD-MMM-YYYY HH:mm:ss";
@@ -97,6 +98,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const plannerSection = document.getElementById("planner-section");
   const plannerGrid = document.getElementById("planner-grid");
   const plannerToggle = document.getElementById("planner-toggle");
+  const appVersionEl = document.getElementById("app-version");
 
   // --- State ---
   let isLiveMode = true;
@@ -108,6 +110,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // --- Initial Config Setup ---
   formatCheckbox.checked = (format === FORMAT_12H);
+  // Footer version render từ JS thay vì hardcode trong HTML
+  if (appVersionEl) appVersionEl.textContent = `v${CURRENT_APP_VERSION}`;
 
   // ===== Helpers =====
 
@@ -159,10 +163,86 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // ===== Time Cards =====
 
-  function renderCards(baseTime) {
+  // Tính dữ liệu render cho từng card (dùng chung cho build lẫn fast-path update).
+  function computeCardData(baseTime) {
     const baseTimeInBaseTz = baseTime.clone().tz(baseTimezone);
     const showAmPm = (format === FORMAT_12H);
     const baseDateStr = baseTimeInBaseTz.format("YYYY-MM-DD");
+    return activeTimezones.map((tz, idx) => {
+      const cardTime = baseTime.clone().tz(tz);
+      const { city, region } = splitZone(tz);
+      return {
+        tz,
+        isBase: (tz === baseTimezone),
+        isFirst: (idx === 0),
+        isLast: (idx === activeTimezones.length - 1),
+        city,
+        region,
+        // Đổi mỗi giây khi live → chỉ được update text node, không rebuild
+        timeFormatted: cardTime.format(showAmPm ? "hh:mm:ss" : "HH:mm:ss"),
+        ariaTime: cardTime.format(format),
+        // Đổi hiếm (qua giờ/ngày/DST) → nằm trong "structure", đổi thì rebuild
+        ampm: showAmPm ? cardTime.format("A") : "",
+        dateFormatted: cardTime.format("ddd, MMM D"),
+        diffDays: dayDiff(baseDateStr, cardTime.format("YYYY-MM-DD")),
+        offsetLabel: (tz === baseTimezone) ? "Base" : formatOffsetDiff(cardTime.utcOffset() - baseTimeInBaseTz.utcOffset()),
+      };
+    });
+  }
+
+  function buildCardHtml(c) {
+    const offsetBadge = `<span class="card-offset-badge">${c.offsetLabel}</span>`;
+
+    // Ngày lệch so với base (+1d/-1d), xử lý cả DST/year boundary qua moment
+    let relativeDayText = "";
+    if (c.diffDays > 0) relativeDayText = `<span class="day-badge day-ahead">+${c.diffDays}d</span>`;
+    else if (c.diffDays < 0) relativeDayText = `<span class="day-badge day-behind">${c.diffDays}d</span>`;
+
+    const meta = zoneMeta(c.tz);
+    const countryDisplay = meta.country
+      ? (c.region ? `${escapeHtml(meta.country)} (${escapeHtml(c.region)})` : escapeHtml(meta.country))
+      : escapeHtml(c.region || "Global");
+    const flag = escapeHtml(flagOf(c.tz));
+
+    return `
+        <div class="timezone-card ${c.isBase ? "is-base" : ""}" data-timezone="${escapeHtml(c.tz)}" draggable="true" role="button" tabindex="0" aria-pressed="${c.isBase}" aria-label="${escapeHtml(c.city)}: ${escapeHtml(c.ariaTime)}${c.isBase ? " (base)" : ""}. Click to set as reference zone.">
+            <div class="card-left">
+                <div class="card-title-row">
+                    <span class="card-flag me-1" aria-hidden="true">${flag}</span>
+                    <span class="card-city">${escapeHtml(c.city)}</span>
+                    ${offsetBadge}
+                </div>
+                <span class="card-region">${countryDisplay}</span>
+                <span class="card-date mt-1">
+                    <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="me-1" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                    ${escapeHtml(c.dateFormatted)} ${relativeDayText}
+                </span>
+            </div>
+            <div class="card-right">
+                <div class="card-time-display">
+                    <span class="card-time-num">${escapeHtml(c.timeFormatted)}</span>
+                    ${c.ampm ? `<span class="card-ampm ${c.ampm.toLowerCase()}">${c.ampm}</span>` : ""}
+                </div>
+                <div class="card-actions">
+                    <button class="action-btn move move-up" title="Move up" aria-label="Move ${escapeHtml(c.city)} up in the list"${c.isFirst ? " disabled" : ""}>
+                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="18 15 12 9 3 15"></polyline></svg>
+                    </button>
+                    <button class="action-btn move move-down" title="Move down" aria-label="Move ${escapeHtml(c.city)} down in the list"${c.isLast ? " disabled" : ""}>
+                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </button>
+                    <button class="action-btn copy" title="Copy formatted time" aria-label="Copy time for ${escapeHtml(c.city)}">
+                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                    </button>
+                    <button class="action-btn delete" title="Remove timezone" aria-label="Remove ${escapeHtml(c.city)}">
+                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+      `;
+  }
+
+  function renderCards(baseTime) {
     zoneCount.textContent = `${activeTimezones.length}/${MAX_CARDS}`;
 
     if (!activeTimezones.length) {
@@ -176,77 +256,41 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-    let html = "";
-    activeTimezones.forEach((tz, idx) => {
-      const isBase = (tz === baseTimezone);
-      const isFirst = (idx === 0);
-      const isLast = (idx === activeTimezones.length - 1);
-      const cardTime = baseTime.clone().tz(tz);
-      const timeFormatted = cardTime.format(showAmPm ? "hh:mm:ss" : "HH:mm:ss");
-      const ampm = showAmPm ? cardTime.format("A") : "";
-      const dateFormatted = cardTime.format("ddd, MMM D");
+    const cards = computeCardData(baseTime);
 
-      // Offset diff so với base (hỗ trợ offset lẻ nửa giờ — 5h30, 9h30…)
-      const diffMinutes = cardTime.utcOffset() - baseTimeInBaseTz.utcOffset();
-      const offsetLabel = isBase ? "Base" : formatOffsetDiff(diffMinutes);
-      const offsetBadge = `<span class="card-offset-badge">${offsetLabel}</span>`;
+    // "Structure" = mọi thứ TRỪ text giờ (timeFormatted/ariaTime đổi mỗi giây).
+    // Structure giống lần trước → chỉ update text node giờ, KHÔNG rebuild DOM
+    // (giữ tinh thần skip-if-unchanged R2-4: tránh phá DOM, giật slider).
+    // Vẫn rebuild khi structure thật sự đổi: thêm/xoá/di chuyển zone, đổi base,
+    // đổi format, qua giờ đổi AM/PM, qua ngày đổi date badge, DST đổi offset.
+    const structure = JSON.stringify(cards.map(c => ({
+      tz: c.tz,
+      isBase: c.isBase,
+      isFirst: c.isFirst,
+      isLast: c.isLast,
+      ampm: c.ampm,
+      dateFormatted: c.dateFormatted,
+      diffDays: c.diffDays,
+      offsetLabel: c.offsetLabel,
+    })));
 
-      // Ngày lệch so với base (+1d/-1d), xử lý cả DST/year boundary qua moment
-      const diffDays = dayDiff(baseDateStr, cardTime.format("YYYY-MM-DD"));
-      let relativeDayText = "";
-      if (diffDays > 0) relativeDayText = `<span class="day-badge day-ahead">+${diffDays}d</span>`;
-      else if (diffDays < 0) relativeDayText = `<span class="day-badge day-behind">${diffDays}d</span>`;
-
-      const { city, region } = splitZone(tz);
-      const meta = zoneMeta(tz);
-      const countryDisplay = meta.country
-        ? (region ? `${escapeHtml(meta.country)} (${escapeHtml(region)})` : escapeHtml(meta.country))
-        : escapeHtml(region || "Global");
-      const flag = escapeHtml(flagOf(tz));
-
-      html += `
-        <div class="timezone-card ${isBase ? "is-base" : ""}" data-timezone="${escapeHtml(tz)}" draggable="true" role="button" tabindex="0" aria-pressed="${isBase}" aria-label="${escapeHtml(city)}: ${escapeHtml(cardTime.format(format))}${isBase ? " (base)" : ""}. Click to set as reference zone.">
-            <div class="card-left">
-                <div class="card-title-row">
-                    <span class="card-flag me-1" aria-hidden="true">${flag}</span>
-                    <span class="card-city">${escapeHtml(city)}</span>
-                    ${offsetBadge}
-                </div>
-                <span class="card-region">${countryDisplay}</span>
-                <span class="card-date mt-1">
-                    <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="me-1" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                    ${escapeHtml(dateFormatted)} ${relativeDayText}
-                </span>
-            </div>
-            <div class="card-right">
-                <div class="card-time-display">
-                    <span class="card-time-num">${escapeHtml(timeFormatted)}</span>
-                    ${ampm ? `<span class="card-ampm ${ampm.toLowerCase()}">${ampm}</span>` : ""}
-                </div>
-                <div class="card-actions">
-                    <button class="action-btn move move-up" title="Move up" aria-label="Move ${escapeHtml(city)} up in the list"${isFirst ? " disabled" : ""}>
-                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="18 15 12 9 3 15"></polyline></svg>
-                    </button>
-                    <button class="action-btn move move-down" title="Move down" aria-label="Move ${escapeHtml(city)} down in the list"${isLast ? " disabled" : ""}>
-                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                    </button>
-                    <button class="action-btn copy" title="Copy formatted time" aria-label="Copy time for ${escapeHtml(city)}">
-                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                    </button>
-                    <button class="action-btn delete" title="Remove timezone" aria-label="Remove ${escapeHtml(city)}">
-                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                    </button>
-                </div>
-            </div>
-        </div>
-      `;
-    });
-
-    // Skip-if-unchanged: tránh phá DOM (mất text selection, giật slider)
-    // khi kết quả render giống hệt lần trước (R2-4).
-    if (html === lastCardsHtml) return;
-    lastCardsHtml = html;
-    timezoneList.innerHTML = html;
+    if (structure === lastCardsHtml) {
+      const cardEls = timezoneList.querySelectorAll(".timezone-card");
+      const domMatches = cardEls.length === cards.length &&
+        cards.every((c, i) => cardEls[i] && cardEls[i].dataset.timezone === c.tz);
+      if (domMatches) {
+        // Fast path: mỗi tick chỉ đổi text giờ (+ aria-label), không rebuild
+        cards.forEach((c, i) => {
+          const el = cardEls[i];
+          el.querySelector(".card-time-num").textContent = c.timeFormatted;
+          el.setAttribute("aria-label", `${c.city}: ${c.ariaTime}${c.isBase ? " (base)" : ""}. Click to set as reference zone.`);
+        });
+        return;
+      }
+      // DOM lệch structure (không mong đợi) → rơi xuống rebuild bên dưới
+    }
+    lastCardsHtml = structure;
+    timezoneList.innerHTML = cards.map(buildCardHtml).join("");
   }
 
   function updateSliderLabels(baseTime) {
@@ -340,19 +384,47 @@ document.addEventListener("DOMContentLoaded", function () {
   } // ===== Remove Timezone =====
 
   function removeTimezone(timezone, cardElement) {
-    cardElement.classList.add("fade-out");
-    cardElement.addEventListener("animationend", () => {
-      activeTimezones = activeTimezones.filter(tz => tz !== timezone);
-      saveZones();
+    // Chụp vị trí card TRƯỚC khi re-render (sau updateDisplay node sẽ bị detach
+    // và getBoundingClientRect trả về 0).
+    const rect = cardElement ? cardElement.getBoundingClientRect() : null;
 
-      if (baseTimezone === timezone) {
-        // R2-5: fallback base an toàn — zone đầu còn lại, nếu rỗng thì UTC
-        baseTimezone = activeTimezones[0] || "UTC";
-        save("baseTimezone", baseTimezone);
-      }
-      lastCardsHtml = null; // force re-render (empty state có thể khác layout)
-      updateDisplay();
-    }, { once: true });
+    // State cập nhật NGAY LẬP TỨC — animation chỉ là hiệu ứng thị giác, không
+    // được phép gate logic (trước đây cleanup chờ animationend, dễ kẹt zone
+    // trong state nếu animation bị tắt / không bắn).
+    activeTimezones = activeTimezones.filter(tz => tz !== timezone);
+    saveZones();
+
+    if (baseTimezone === timezone) {
+      // R2-5: fallback base an toàn — zone đầu còn lại, nếu rỗng thì UTC
+      baseTimezone = activeTimezones[0] || "UTC";
+      save("baseTimezone", baseTimezone);
+    }
+    lastCardsHtml = null; // force re-render (empty state có thể khác layout)
+    updateDisplay();
+
+    // Hiệu ứng fade-out: clone card đè lên vị trí cũ (list đã render lại mà
+    // không còn zone này). Cleanup qua animationend KÈM fallback timeout
+    // (0.3s animation + buffer) phòng animationend không bắn.
+    if (!cardElement || !rect || !rect.width) return;
+    const ghost = cardElement.cloneNode(true);
+    ghost.classList.remove("dragging", "drag-over-top", "drag-over-bottom");
+    ghost.classList.add("fade-out");
+    ghost.style.position = "fixed";
+    ghost.style.top = `${rect.top}px`;
+    ghost.style.left = `${rect.left}px`;
+    ghost.style.width = `${rect.width}px`;
+    ghost.style.height = `${rect.height}px`;
+    ghost.style.margin = "0";
+    ghost.style.zIndex = "10";
+    document.body.appendChild(ghost);
+    let cleaned = false;
+    const cleanup = () => {
+      if (cleaned) return;
+      cleaned = true;
+      ghost.remove();
+    };
+    ghost.addEventListener("animationend", cleanup, { once: true });
+    setTimeout(cleanup, 400);
   }
 
   // ===== Clipboard =====

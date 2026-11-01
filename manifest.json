@@ -5,7 +5,8 @@
     "description": "Display the time of countries beautifully.",
     "icons": {
         "16": "images/icon.png",
-        "48": "images/icon.png"
+        "48": "images/icon.png",
+        "128": "images/icon128.png"
     },
     "action": {
         "default_icon": {
